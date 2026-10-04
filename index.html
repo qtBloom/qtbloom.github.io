@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bloom Portfolio</title>
+<meta name="description" content="Bloom — Minecraft staff & media manager.">
+<style>
+  :root {
+    --desk: #1b1b1f;
+    --tabbar: #202020;
+    --tab: #0c0c0c;
+    --term: #0c0c0c;
+    --fg: #cccccc;
+    --dim: #767676;
+    --white: #f2f2f2;
+    --accent: #ff4d5a;
+    --err: #f14c4c;
+    --border: #3a3a3a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: radial-gradient(ellipse at 30% 20%, #2e1c1e 0%, var(--desk) 55%, #111 100%);
+    font-family: 'Cascadia Mono', 'Cascadia Code', Consolas, 'Courier New', monospace;
+    color: var(--fg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 28px;
+    overflow: hidden;
+  }
+
+  .window {
+    width: min(1120px, 100%);
+    height: min(700px, calc(100vh - 56px));
+    background: var(--term);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 24px 70px rgba(0, 0, 0, .65);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+  }
+  .head {
+    position: absolute;
+    top: 54px;
+    right: 26px;
+    width: 120px;
+    height: 120px;
+    image-rendering: pixelated;
+    pointer-events: none;
+    user-select: none;
+    filter: drop-shadow(0 6px 18px rgba(255, 77, 90, .25));
+  }
+
+  /* ── Tab bar (Windows Terminal style) ── */
+  .tabbar {
+    height: 40px;
+    background: var(--tabbar);
+    display: flex;
+    align-items: flex-end;
+    padding-left: 8px;
+    flex-shrink: 0;
+    user-select: none;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+  }
+  .tab {
+    height: 34px;
+    width: 240px;
+    max-width: 45vw;
+    background: var(--tab);
+    border-radius: 8px 8px 0 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 10px 0 12px;
+    font-size: 12.5px;
+    color: var(--white);
+  }
+  .tab-icon {
+    width: 16px; height: 16px;
+    border-radius: 3px;
+    background: linear-gradient(135deg, #ff7a84, #d62839);
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+  }
+  .tab-icon svg { width: 10px; height: 10px; }
+  .tab-title { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tab-close { color: var(--fg); font-size: 15px; line-height: 1; padding: 2px 4px; border-radius: 4px; }
+  .tab-close:hover { background: #2d2d2d; }
+  .tab-actions { display: flex; align-items: center; height: 34px; gap: 2px; padding-left: 6px; color: var(--fg); }
+  .tab-actions span { padding: 2px 9px; border-radius: 4px; font-size: 15px; }
+  .tab-actions span:hover { background: #2d2d2d; }
+  .tab-actions .chev { font-size: 10px; }
+  .drag { flex: 1; }
+  .controls { display: flex; height: 40px; align-self: flex-start; }
+  .controls span {
+    width: 46px;
+    display: grid;
+    place-items: center;
+    color: var(--fg);
+    font-size: 13px;
+  }
+  .controls span:hover { background: #2d2d2d; }
+  .controls .x:hover { background: #c42b1c; color: #fff; }
+
+  /* ── Terminal ── */
+  #screen {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px 14px 24px;
+    font-size: 15px;
+    line-height: 1.35;
+    cursor: text;
+    scrollbar-width: thin;
+    scrollbar-color: #3a3a3a transparent;
+  }
+  .line { white-space: pre-wrap; word-break: break-word; min-height: 1.35em; }
+  .white { color: var(--white); }
+  .dim { color: var(--dim); }
+  .accent { color: var(--accent); }
+  .err { color: var(--err); }
+  .banner {
+    color: var(--accent);
+    white-space: pre;
+    line-height: 1.1;
+    font-size: clamp(6px, 1.5vw, 14px);
+    margin: 4px 0 6px;
+  }
+  .cmd-link { color: var(--accent); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+
+  .input-line { display: none; }
+  .typed { white-space: pre-wrap; word-break: break-all; }
+  .cursor {
+    display: inline-block;
+    width: 1px;
+    height: 1.15em;
+    background: var(--white);
+    vertical-align: text-bottom;
+    margin-left: 1px;
+    animation: blink 1.06s steps(1) infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+  #hidden-input { position: fixed; opacity: 0; left: -9999px; top: 0; }
+
+  @media (max-width: 640px) {
+    body { padding: 0; }
+    .window { height: 100vh; border-radius: 0; border: none; }
+    .controls span { width: 36px; }
+    .tab-actions { display: none; }
+    .head { width: 64px; height: 64px; top: 48px; right: 10px; }
+    #screen { font-size: 12.5px; padding: 10px 10px 20px; }
+  }
+</style>
+</head>
+<body>
+<div class="window">
+  <div class="tabbar">
+    <div class="tab">
+      <span class="tab-icon"><svg viewBox="0 0 10 10" fill="none" stroke="#fff" stroke-width="1.6"><path d="M1.5 2l3 3-3 3"/><path d="M5.5 8h3"/></svg></span>
+      <span class="tab-title">Bloom Portfolio</span>
+      <span class="tab-close">×</span>
+    </div>
+    <div class="tab-actions"><span>+</span><span class="chev">⌄</span></div>
+    <div class="drag"></div>
+    <div class="controls"><span>&#x2500;</span><span>&#x2610;</span><span class="x">&#x2715;</span></div>
+  </div>
+  <img class="head" src="head.png" alt="Bloom">
+  <div id="screen">
+    <div id="output"></div>
+    <div class="input-line" id="input-line"><span id="prompt"></span><span class="typed" id="typed"></span><span class="cursor"></span></div>
+  </div>
+</div>
+<input id="hidden-input" autocomplete="off" autocapitalize="off" spellcheck="false">
+
+<script>
+/* ═══════════════════ EDIT YOUR INFO HERE ═══════════════════ */
+const NAME = "Bloom";
+const CONTACT = {
+  discordUser: "bloomqt",
+  discordId: "1475567782757404722"
+};
+const EXPERIENCES = [
+  { role: "Media Manager Assistant",         server: "UniversalMC",   members: 11000 },
+  { role: "Staff Manager & Media Manager",   server: "TurtleVanilla", members: 4000 },
+  { role: "Staff Manager & General Manager", server: "StablePvP",     members: 1500 },
+  { role: "Staff Manager & General Manager", server: "PurpVanilla",   members: 2600 },
+  { role: "Staff Manager",                   server: "RuneMC",        members: 1700 },
+  { role: "Community Manager",               server: "EchoSMP",       members: 4300 },
+  { role: "Media Manager Assistant",         server: "ForeignMC",     members: 3300 }
+];
+/* ═══════════════════════════════════════════════════════════ */
+
+const BANNER = String.raw`
+██████╗ ██╗      ██████╗  ██████╗ ███╗   ███╗
+██╔══██╗██║     ██╔═══██╗██╔═══██╗████╗ ████║
+██████╔╝██║     ██║   ██║██║   ██║██╔████╔██║
+██╔══██╗██║     ██║   ██║██║   ██║██║╚██╔╝██║
+██████╔╝███████╗╚██████╔╝╚██████╔╝██║ ╚═╝ ██║
+╚═════╝ ╚══════╝ ╚═════╝  ╚═════╝ ╚═╝     ╚═╝`.slice(1);
+
+const out = document.getElementById("output");
+const screen = document.getElementById("screen");
+const typedEl = document.getElementById("typed");
+const inputLine = document.getElementById("input-line");
+const hidden = document.getElementById("hidden-input");
+
+const PROMPT = `PS C:\\Users\\bloom&gt; `;
+document.getElementById("prompt").innerHTML = PROMPT;
+
+const esc = s => s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmt = n => n.toLocaleString("en-US");
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+let busy = true;
+const past = [];
+let pastIdx = 0;
+
+function print(html = "", cls = "") {
+  const d = document.createElement("div");
+  d.className = "line " + cls;
+  d.innerHTML = html;
+  out.appendChild(d);
+  screen.scrollTop = screen.scrollHeight;
+  return d;
+}
+
+/* ─────────────── Commands ─────────────── */
+const COMMANDS = {
+  async experience() {
+    print();
+    if (window.innerWidth < 640) {
+      // Narrow screens: one block per experience
+      for (const e of EXPERIENCES) {
+        print(`<span class="accent">│</span> <span class="white">${esc(e.server)}</span> <span class="dim">·</span> ${fmt(e.members)}+ members`);
+        print(`<span class="accent">│</span> <span class="dim">${esc(e.role)}</span>`);
+        print();
+        await sleep(60);
+      }
+      return;
+    }
+    // Wide screens: a table like PowerShell's Format-Table
+    const head = ["Server", "Role", "Discord Members"];
+    const w0 = Math.max(head[0].length, ...EXPERIENCES.map(e => e.server.length)) + 3;
+    const w1 = Math.max(head[1].length, ...EXPERIENCES.map(e => e.role.length)) + 3;
+    print(`<span class="white">${head[0].padEnd(w0)}${head[1].padEnd(w1)}${head[2]}</span>`);
+    print(`<span class="white">${"-".repeat(head[0].length).padEnd(w0)}${"-".repeat(head[1].length).padEnd(w1)}${"-".repeat(head[2].length)}</span>`);
+    for (const e of EXPERIENCES) {
+      print(`<span class="accent">${esc(e.server.padEnd(w0))}</span>${esc(e.role.padEnd(w1))}<span class="white">${(fmt(e.members) + "+").padStart(head[2].length)}</span>`);
+      await sleep(60);
+    }
+  },
+  contact() {
+    print();
+    print(`<span class="white">Contact</span>`);
+    print(`<span class="white">-------</span>`);
+    print(`Discord User : <span class="accent">${esc(CONTACT.discordUser)}</span>`);
+    print(`Discord ID   : <a class="cmd-link" href="https://discord.com/users/${esc(CONTACT.discordId)}" target="_blank" rel="noopener">${esc(CONTACT.discordId)}</a>`);
+  },
+  history() {
+    // Like PowerShell's Get-History: the current "history" call is not listed
+    const list = past.slice(0, -1);
+    if (!list.length) return;
+    print();
+    print(`<span class="white">  Id CommandLine</span>`);
+    print(`<span class="white">  -- -----------</span>`);
+    list.forEach((c, i) => print(`${String(i + 1).padStart(4)} ${esc(c)}`));
+  },
+  help() {
+    print();
+    print(`<span class="white">Available commands</span>`);
+    print(`<span class="white">------------------</span>`);
+    print(`<span class="cmd-link" data-cmd="experience">experience</span>   Show my management experiences`);
+    print(`<span class="cmd-link" data-cmd="contact">contact</span>      How to reach me`);
+    print(`<span class="cmd-link" data-cmd="history">history</span>      Show the commands you typed`);
+    print(`<span class="cmd-link" data-cmd="clear">clear</span>        Clear the screen`);
+    print(`<span class="cmd-link" data-cmd="reset">reset</span>        Reset the terminal (screen and history)`);
+  },
+  reset() {
+    out.innerHTML = "";
+    past.length = 0;
+    pastIdx = 0;
+    intro();
+  },
+  clear() { out.innerHTML = ""; },
+  cls() { out.innerHTML = ""; }
+};
+COMMANDS.experiences = COMMANDS.experience;
+
+async function run(raw) {
+  const line = raw.trim();
+  print(`${PROMPT}${esc(raw)}`);
+  if (line) {
+    past.push(line);
+    pastIdx = past.length;
+    const name = line.split(/\s+/)[0];
+    busy = true;
+    inputLine.style.display = "none";
+    const cmd = COMMANDS[name.toLowerCase()];
+    if (cmd) {
+      await cmd();
+    } else {
+      print(`<span class="err">${esc(name)} : The term '${esc(name)}' is not recognized as the name of a cmdlet, function, script file, or operable program.</span>`);
+      print(`<span class="err">Type </span><span class="cmd-link" data-cmd="help">help</span><span class="err"> to see all commands.</span>`);
+    }
+    if (!["clear", "cls", "reset"].includes(name.toLowerCase())) print();
+  }
+  busy = false;
+  inputLine.style.display = "block";
+  screen.scrollTop = screen.scrollHeight;
+  hidden.focus({ preventScroll: true });
+}
+
+/* ─────────────── Input ─────────────── */
+hidden.addEventListener("input", () => {
+  typedEl.textContent = hidden.value;
+  screen.scrollTop = screen.scrollHeight;
+});
+
+hidden.addEventListener("keydown", e => {
+  if (busy) { e.preventDefault(); return; }
+  const set = v => { hidden.value = v; typedEl.textContent = v; };
+  if (e.key === "Enter") {
+    e.preventDefault();
+    const v = hidden.value;
+    set("");
+    run(v);
+  } else if (e.key === "ArrowUp") {
+    e.preventDefault();
+    if (pastIdx > 0) pastIdx--;
+    set(past[pastIdx] || "");
+  } else if (e.key === "ArrowDown") {
+    e.preventDefault();
+    if (pastIdx < past.length) pastIdx++;
+    set(past[pastIdx] || "");
+  } else if (e.key === "Tab") {
+    e.preventDefault();
+    const v = hidden.value.toLowerCase();
+    const m = Object.keys(COMMANDS).filter(k => v && k.startsWith(v));
+    if (m.length) set(m[0]);
+  } else if (e.key === "l" && e.ctrlKey) {
+    e.preventDefault();
+    out.innerHTML = "";
+  } else if (e.key === "c" && e.ctrlKey && !window.getSelection().toString()) {
+    e.preventDefault();
+    print(`${PROMPT}${esc(hidden.value)}`);
+    set("");
+  }
+});
+
+document.addEventListener("click", e => {
+  const link = e.target.closest(".cmd-link[data-cmd]");
+  if (link && !busy) {
+    run(link.dataset.cmd);
+    return;
+  }
+  if (!window.getSelection().toString()) hidden.focus({ preventScroll: true });
+});
+document.addEventListener("keydown", e => {
+  if (document.activeElement !== hidden && !e.ctrlKey && !e.metaKey && !e.altKey) hidden.focus({ preventScroll: true });
+});
+
+/* ─────────────── Start ─────────────── */
+function intro() {
+  print(`Bloom Portfolio`);
+  print(`Copyright (C) ${NAME}. All rights reserved.`);
+  print();
+  print(`<div class="banner">${BANNER}</div>`);
+  print(`Commands: <span class="cmd-link" data-cmd="experience">experience</span>  <span class="cmd-link" data-cmd="contact">contact</span>  <span class="cmd-link" data-cmd="history">history</span>  <span class="cmd-link" data-cmd="reset">reset</span>  <span class="cmd-link" data-cmd="help">help</span>`);
+  print();
+}
+
+function start() {
+  intro();
+  busy = false;
+  inputLine.style.display = "block";
+  hidden.focus({ preventScroll: true });
+}
+start();
+</script>
+</body>
+</html>
